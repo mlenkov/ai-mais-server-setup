@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "ai-mais-server-setup"
+version = "1.0.0"
+description = "Automated deployment: Caddy -> OAuth2-Proxy (Yandex) -> Hermes Agent on Debian 12"
+requires-python = ">=3.11"
+authors = [
+    { name = "AI Mais" },
+]
+license = { text = "MIT" }
