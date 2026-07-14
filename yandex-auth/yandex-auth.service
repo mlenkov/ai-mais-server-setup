@@ -1,0 +1,16 @@
+[Unit]
+Description=Yandex OAuth Auth Handler
+After=network.target
+
+[Service]
+Type=simple
+User=mais
+ExecStart=/usr/bin/python3 /opt/yandex-auth/auth.py
+Restart=always
+RestartSec=5
+Environment=COOKIE_SECRET=
+Environment=YANDEX_CLIENT_ID=
+Environment=YANDEX_CLIENT_SECRET=
+
+[Install]
+WantedBy=multi-user.target

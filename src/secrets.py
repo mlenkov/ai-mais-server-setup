@@ -19,31 +19,21 @@ def _parse_env(path):
     return env
 
 
-def _append_to_env(path, key, value):
-    with open(path, "a") as f:
-        f.write(f"\n{key}={value}\n")
-    print(f"  Appended {key} to {path}")
-
-
 def validate_secrets():
     env = _parse_env(ENV_PATH)
 
-    required = ["YANDEX_CLIENT_ID", "YANDEX_CLIENT_SECRET", "OPENCODE_ZEN_API_KEY"]
-    missing = [k for k in required if not env.get(k)]
+    if not env:
+        print("  No secrets file found at /opt/secrets/hermes.env")
+        print("  Hermes provider config: skip (configure later)")
+        print("  Yandex-Auth: configure manually in /etc/systemd/system/yandex-auth.service")
+        return {}
 
-    if missing:
-        print(f"  Missing required secrets in {ENV_PATH}: {', '.join(missing)}")
-        print(f"  Please add them and re-run.")
-        sys.exit(1)
+    print(f"  Found {len(env)} keys in {ENV_PATH}")
 
-    if not env.get("OAUTH2_PROXY_COOKIE_SECRET"):
-        print(f"  Generating OAUTH2_PROXY_COOKIE_SECRET...")
-        secret = secrets.token_urlsafe(32)[:43]
-        _append_to_env(ENV_PATH, "OAUTH2_PROXY_COOKIE_SECRET", secret)
-        env["OAUTH2_PROXY_COOKIE_SECRET"] = secret
-        print(f"  OAUTH2_PROXY_COOKIE_SECRET generated")
-    else:
-        print(f"  OAUTH2_PROXY_COOKIE_SECRET already set")
+    if not env.get("YANDEX_CLIENT_ID"):
+        print("  YANDEX_CLIENT_ID not set — configure yandex-auth manually")
+    if not env.get("OPENCODE_ZEN_API_KEY"):
+        print("  OPENCODE_ZEN_API_KEY not set — Hermes will not configure provider")
 
-    print(f"  All secrets validated")
+    print(f"  Secrets validated")
     return env

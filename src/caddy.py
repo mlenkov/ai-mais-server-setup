@@ -4,11 +4,7 @@ from . import utils
 
 CADDYFILE_PATH = pathlib.Path("/etc/caddy/Caddyfile")
 
-CADDYFILE_CONTENT = """\
-ai.mais.agency {
-    reverse_proxy 127.0.0.1:4180
-}
-"""
+CADDYFILE_CONTENT = (pathlib.Path(__file__).resolve().parent.parent / "configs" / "Caddyfile").read_text()
 
 
 def install_caddy():

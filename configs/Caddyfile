@@ -1,3 +1,83 @@
+{
+	email admin@mais.agency
+}
+
+bifrost.mais.agency {
+	log {
+		output file /var/log/caddy/bifrost.mais.agency.log
+		format json
+	}
+
+	reverse_proxy 127.0.0.1:4000
+}
+
+mais.agency, www.mais.agency {
+	@www host www.mais.agency
+	redir @www https://mais.agency{uri} permanent
+
+	root * /home/mais/www
+	php_fastcgi unix//run/php/php8.3-fpm.sock
+	file_server
+
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	try_files {path} {path}/ /index.php?{query}
+}
+
 ai.mais.agency {
-    reverse_proxy 127.0.0.1:4180
+	log {
+		output file /var/log/caddy/ai.mais.agency.log
+		format json
+	}
+
+	handle /auth {
+		reverse_proxy 127.0.0.1:4180
+	}
+	handle /oauth2/* {
+		reverse_proxy 127.0.0.1:4180
+	}
+
+	handle_path /hermes/* {
+		reverse_proxy 127.0.0.1:9119 {
+			header_up Host 127.0.0.1:9119
+			header_up X-Forwarded-Prefix /hermes
+			header_up Origin "http://127.0.0.1:9119"
+			header_up Referer "http://127.0.0.1:9119/"
+		}
+	}
+	redir /hermes /hermes/
+
+	handle /v1/* {
+		reverse_proxy 127.0.0.1:4000
+	}
+
+	handle /health {
+		reverse_proxy 127.0.0.1:4000
+	}
+
+	handle_path /bifrost/* {
+		root * /home/mais/bifrost-ui
+		try_files {path} /index.html
+		file_server
+	}
+	redir /bifrost /bifrost/
+
+	handle /assets/* {
+		reverse_proxy 127.0.0.1:9119 {
+			header_up Host 127.0.0.1:9119
+			header_up Origin "http://127.0.0.1:9119"
+			header_up Referer "http://127.0.0.1:9119/"
+		}
+	}
+
+	handle {
+		root * /home/mais/www
+		php_fastcgi unix//run/php/php8.3-fpm.sock
+		file_server
+	}
 }

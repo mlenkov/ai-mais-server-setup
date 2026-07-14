@@ -1,30 +1,39 @@
 # AI Mais Server Setup
 
-Автоматизированное развёртывание стека: **Caddy → OAuth2-Proxy (Yandex) → Hermes Agent** на Debian 12.
+Автоматизированное развёртывание стека: **Caddy → Yandex-Auth (Python) → Hermes Agent** на Debian 12.
 
 ## Архитектура
 
 ```
-Internet ──► Caddy:443 ──► OAuth2-Proxy:4180 ──► Hermes:8080
+Internet ──► Caddy:443 ──► Yandex-Auth:4180 ──► Hermes:9119
                  ▲              ▲  (127.0.0.1)       ▲  (127.0.0.1)
                  │              │                     │
-              TLS/SSL      Yandex OAuth         AI Agent API
+              TLS/SSL      Yandex OAuth          AI Agent API
 ```
 
 | Компонент | Пользователь | Порт | Доступ |
 |-----------|-------------|------|--------|
 | Caddy | `caddy` | `0.0.0.0:443` | Публичный (TLS) |
-| OAuth2-Proxy | `oauth2-proxy` | `127.0.0.1:4180` | Только localhost |
-| Hermes Agent | `hermes` | `127.0.0.1:8080` | Только localhost |
+| Yandex-Auth | `mais` | `127.0.0.1:4180` | Только localhost |
+| Hermes Agent | `hermes` | `127.0.0.1:9119` | Только localhost |
 
-**Ключевое требование безопасности:** Hermes и OAuth2-Proxy слушают ТОЛЬКО `127.0.0.1`. Прямой доступ к порту 8080 снаружи невозможен.
+**Ключевое требование безопасности:** Yandex-Auth и Hermes слушают ТОЛЬКО `127.0.0.1`. Прямой доступ к портам 4180 и 9119 снаружи невозможен.
+
+### Caddy-маршруты (`ai.mais.agency`)
+
+| Путь | Бэкенд | Описание |
+|---|---|---|
+| `/auth`, `/oauth2/*` | Yandex-Auth:4180 | OAuth-проверка и callback |
+| `/hermes/*` | Hermes:9119 | Dashboard |
+| `/v1/*`, `/health` | Bifrost:4000 | AI API |
+| `/bifrost/*` | `/home/mais/bifrost-ui` | Статика Bifrost UI |
 
 ## Предварительные требования
 
 - Debian 12 (чистая установка)
 - Домен `ai.mais.agency`, направленный на сервер
 - Права root (`sudo`)
-- Git, curl, xz-utils (будут установлены при необходимости)
+- Git, curl (будут установлены при необходимости)
 
 ## Получение Yandex OAuth Credentials
 
@@ -39,12 +48,6 @@ Internet ──► Caddy:443 ──► OAuth2-Proxy:4180 ──► Hermes:8080
    - **ID приложения** → `YANDEX_CLIENT_ID`
    - **Пароль приложения** → `YANDEX_CLIENT_SECRET`
 
-## Получение OpenCode Zen API Key
-
-1. Зарегистрируйтесь на https://opencode.ai
-2. В настройках аккаунта создайте API-ключ
-3. Скопируйте ключ → `OPENCODE_ZEN_API_KEY`
-
 ## Установка
 
 ### 1. Подготовка secrets
@@ -53,16 +56,27 @@ Internet ──► Caddy:443 ──► OAuth2-Proxy:4180 ──► Hermes:8080
 mkdir -p /opt/secrets
 ```
 
-Создайте `/opt/secrets/hermes.env`:
+Создайте `/opt/secrets/hermes.env` (опционально, если Hermes использует внешний роутер):
 
 ```ini
-YANDEX_CLIENT_ID=your_client_id
-YANDEX_CLIENT_SECRET=your_client_secret
-OPENCODE_ZEN_API_KEY=sk-zen-your_key
-# OAUTH2_PROXY_COOKIE_SECRET=  # будет сгенерирован автоматически
+# OPENCODE_ZEN_API_KEY=sk-zen-your_key
 ```
 
-### 2. Запуск установки
+### 2. Yandex-Auth (вручную)
+
+```bash
+mkdir -p /opt/yandex-auth
+# Скопируйте yandex-auth/auth.py в /opt/yandex-auth/
+# Скопируйте yandex-auth/yandex-auth.service в /etc/systemd/system/
+
+# Отредактируйте /etc/systemd/system/yandex-auth.service — укажите свои секреты
+# YANDEX_CLIENT_ID, YANDEX_CLIENT_SECRET, COOKIE_SECRET
+
+systemctl daemon-reload
+systemctl enable --now yandex-auth
+```
+
+### 3. Запуск основного установщика
 
 ```bash
 git clone <repo-url> /opt/ai-mais-server-setup
@@ -72,25 +86,19 @@ sudo python3 setup.py
 
 Скрипт выполнит по порядку:
 
-1. **Secrets** — проверит наличие ключей, сгенерирует `OAUTH2_PROXY_COOKIE_SECRET`
-2. **Caddy** — установит из apt, настроит reverse_proxy на 4180
-3. **OAuth2-Proxy** — скачает бинарник (v7.15.3), создаст пользователя и systemd unit
-4. **Hermes Agent** — создаст пользователя, установит через официальный инсталлятор, настроит OpenCode Zen, запустит dashboard на 8080
+1. **Secrets** — проверит наличие ключей (опционально)
+2. **Caddy** — установит из apt, настроит reverse_proxy на yandex-auth и hermes
+3. **Hermes Agent** — создаст пользователя, установит через официальный инсталлятор, настроит systemd unit
 
-### 3. Добавление email'ов в whitelist
+### 4. Добавление email'ов в whitelist
 
 Отредактируйте `/etc/oauth2-proxy/authenticated-emails.txt`:
 
 ```
 user@example.com
-another@example.com
 ```
 
-Затем перезапустите OAuth2-Proxy:
-
-```bash
-systemctl restart oauth2-proxy
-```
+Yandex-Auth подхватит изменения без перезапуска.
 
 ## Проверка
 
@@ -98,14 +106,14 @@ systemctl restart oauth2-proxy
 
 ```bash
 systemctl status caddy
-systemctl status oauth2-proxy
+systemctl status yandex-auth
 systemctl status hermes-agent
 ```
 
 ### Проверьте, что всё слушает только localhost:
 
 ```bash
-ss -tlnp | grep -E '(4180|8080)'
+ss -tlnp | grep -E '(4180|9119)'
 ```
 
 Оба порта должны быть привязаны к `127.0.0.1`.
@@ -120,15 +128,19 @@ ss -tlnp | grep -E '(4180|8080)'
 
 ```bash
 journalctl -u caddy -f
-journalctl -u oauth2-proxy -f
+journalctl -u yandex-auth -f
 journalctl -u hermes-agent -f
 ```
 
 ## Обновление компонентов
 
-### OAuth2-Proxy
+### Yandex-Auth
 
-Обновите версию в `src/oauth2_proxy.py` (`OAUTH2_PROXY_VERSION`) и перезапустите скрипт.
+Обновите `auth.py` и перезапустите сервис:
+
+```bash
+systemctl restart yandex-auth
+```
 
 ### Hermes Agent
 
@@ -147,15 +159,5 @@ apt update && apt upgrade caddy
 Скрипт можно безопасно запускать многократно. Каждый шаг проверяет текущее состояние:
 
 - Пакет установлен? → пропустить `apt install`
-- Бинарник нужной версии? → пропустить скачивание
 - Systemd unit активен? → пропустить `systemctl start`
 - Hermes уже установлен? → пропустить инсталлятор
-
-## Общая информация
-
-| Параметр | Значение |
-|----------|----------|
-| Провайдер Hermes | OpenCode Zen |
-| Модель | `opencode-zen/deepseek-v4-flash-free` |
-| OAuth2-Proxy версия | v7.15.3 |
-| ОС | Debian 12 |
