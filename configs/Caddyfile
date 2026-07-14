@@ -9,6 +9,10 @@ ai.mais.agency {
             uri /auth
             copy_headers X-Auth-Request-User X-Auth-Request-Email
         }
-        reverse_proxy 127.0.0.1:9119
+        reverse_proxy 127.0.0.1:9119 {
+            header_up Host 127.0.0.1:9119
+            header_up Origin "http://127.0.0.1:9119"
+            header_up Referer "http://127.0.0.1:9119/"
+        }
     }
 }
