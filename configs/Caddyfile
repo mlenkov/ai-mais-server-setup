@@ -1,12 +1,17 @@
 ai.mais.agency {
-	handle /auth {
-		reverse_proxy 127.0.0.1:4180
-	}
-	handle /oauth2/* {
-		reverse_proxy 127.0.0.1:4180
-	}
-	handle {
-		root * /var/www/html
-		file_server
-	}
+    handle /auth {
+        reverse_proxy 127.0.0.1:4180
+    }
+    handle /start {
+        reverse_proxy 127.0.0.1:4180
+    }
+    handle /oauth2/* {
+        reverse_proxy 127.0.0.1:4180
+    }
+    handle /ping {
+        reverse_proxy 127.0.0.1:4180
+    }
+    handle {
+        respond "OK" 200
+    }
 }

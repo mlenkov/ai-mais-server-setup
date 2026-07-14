@@ -115,7 +115,7 @@ class AuthHandler(http.server.BaseHTTPRequestHandler):
             self.handle_auth()
         elif path == "/start":
             self.handle_start(qs)
-        elif path == "/callback":
+        elif path in ("/callback", "/oauth2/callback"):
             self.handle_callback(qs)
         elif path == "/ping":
             self._text(200, "OK")
