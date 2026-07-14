@@ -1,5 +1,5 @@
 ai.mais.agency {
-    @auth path /start /callback /logout /ping
+    @auth path /start /callback /logout /ping /oauth2/*
     handle @auth {
         reverse_proxy 127.0.0.1:4180
     }
