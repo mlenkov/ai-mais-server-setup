@@ -24,9 +24,7 @@ Internet ──► Caddy:443 ──► Yandex-Auth:4180 ──► Hermes:9119
 | Путь | Бэкенд | Описание |
 |---|---|---|
 | `/auth`, `/oauth2/*` | Yandex-Auth:4180 | OAuth-проверка и callback |
-| `/hermes/*` | Hermes:9119 | Dashboard |
-| `/v1/*`, `/health` | Bifrost:4000 | AI API |
-| `/bifrost/*` | `/home/mais/bifrost-ui` | Статика Bifrost UI |
+| `/*` | статика | Файлы из `/var/www/html` |
 
 ## Предварительные требования
 
