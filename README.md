@@ -19,12 +19,21 @@ Internet ──► Caddy:443 ──► Yandex-Auth:4180 ──► Hermes:9119
 
 **Ключевое требование безопасности:** Yandex-Auth и Hermes слушают ТОЛЬКО `127.0.0.1`. Прямой доступ к портам 4180 и 9119 снаружи невозможен.
 
+**Поток аутентификации:**
+1. Пользователь открывает `https://ai.mais.agency/`
+2. Caddy отправляет `forward_auth` запрос к Yandex-Auth:4180 (`/auth`)
+3. Если нет cookie → Yandex-Auth возвращает 302 redirect на `/start`
+4. `/start` → редирект на Yandex OAuth
+5. После входа → callback на `/oauth2/callback` → Yandex-Auth устанавливает cookie
+6. Повторный запрос → cookie валидна → Yandex-Auth возвращает 200 + заголовки пользователя
+7. Caddy пропускает запрос к Hermes Dashboard:9119
+
 ### Caddy-маршруты (`ai.mais.agency`)
 
 | Путь | Бэкенд | Описание |
 |---|---|---|
-| `/auth`, `/oauth2/*` | Yandex-Auth:4180 | OAuth-проверка и callback |
-| `/*` | статика | Файлы из `/var/www/html` |
+| `/start`, `/callback`, `/logout`, `/ping` | Yandex-Auth:4180 | OAuth endpoints |
+| `/*` | forward_auth → Yandex-Auth:4180 → Hermes:9119 | Всё остальное — через OAuth к Dashboard |
 
 ## Предварительные требования
 

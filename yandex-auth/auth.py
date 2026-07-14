@@ -132,10 +132,7 @@ class AuthHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header("X-Auth-Request-Email", email)
                 self.end_headers()
                 return
-        self.send_response(401)
-        self.send_header("Content-Type", "text/plain")
-        self.end_headers()
-        self.wfile.write(b"unauthorized")
+        self._redirect("/start")
 
     def handle_start(self, qs):
         rd = qs.get("rd", ["/"])[0]
