@@ -161,6 +161,57 @@ sudo -u hermes hermes update
 apt update && apt upgrade caddy
 ```
 
+## Telegram Bot
+
+Для работы Telegram бота требуется Cloudflare Worker (прокси, так как Telegram API заблокирован).
+
+### Cloudflare Worker
+
+```javascript
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    const token = url.pathname.split('/')[1];
+    if (!token || !token.startsWith('bot')) {
+      return new Response('Use: /bot<TOKEN>/<method>', { status: 400 });
+    }
+    url.hostname = 'api.telegram.org';
+    url.protocol = 'https:';
+    return fetch(url.toString(), {
+      method: request.method,
+      headers: request.headers,
+      body: request.body,
+    });
+  },
+};
+```
+
+Развернуть на [dash.cloudflare.com](https://dash.cloudflare.com) → Workers & Pages → Create Worker.
+
+### Настройка Hermes
+
+В `~/.hermes/.env`:
+```bash
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_ALLOWED_USERS=your_user_id
+```
+
+В `~/.hermes/config.yaml`:
+```yaml
+platforms:
+  telegram:
+    extra:
+      base_url: https://your-worker.your-subdomain.workers.dev/bot
+```
+
+### Запуск
+
+```bash
+hermes gateway
+```
+
+Бот появится онлайн. Отправьте `/start` в Telegram.
+
 ## Идемпотентность
 
 Скрипт можно безопасно запускать многократно. Каждый шаг проверяет текущее состояние:
