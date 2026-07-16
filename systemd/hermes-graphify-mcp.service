@@ -1,0 +1,18 @@
+[Unit]
+Description=Graphify MCP Server for Hermes Agent
+Documentation=https://github.com/Graphify-Labs/graphify
+After=network.target
+PartOf=hermes-agent.service
+
+[Service]
+Type=simple
+User=hermes
+EnvironmentFile=/home/hermes/.hermes/.env
+ExecStart=/bin/sh -c 'exec /home/hermes/.local/share/uv/tools/graphifyy/bin/python -m graphify.serve /home/hermes/.hermes/graphify-out/graph.json --transport http --host 127.0.0.1 --port 8765 --api-key "$OPENAI_API_KEY"'
+Restart=always
+RestartSec=10
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
